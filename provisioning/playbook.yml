@@ -1,0 +1,312 @@
+- name: Configure wavm
+  hosts: wavm
+  gather_facts: false
+  pre_tasks:
+    - name: Wait for PSRP listener to accept connections
+      ansible.builtin.wait_for_connection:
+        delay: 0
+        sleep: 10
+        timeout: 900
+  roles:
+    - role: ansible-role-user-access-windows
+      user_access_username: LocalAdmin
+      user_access_password: Password123!
+      user_access_rdp: True
+      user_access_admin: True
+  tasks:
+    - name: Install Git, Autopsy, and Strawberry Perl via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name:
+          - git
+          - autopsy
+          - strawberryperl
+        state: present
+
+    - name: Download CodeMeter runtime
+      ansible.windows.win_get_url:
+        url: https://github.com/sderziotis/btcmp-16-windows/releases/download/v1.3/CodeMeterRuntime.zip
+        dest: C:\Windows\Temp\CodeMeterRuntime.zip
+
+    - name: Extract CodeMeter runtime
+      community.windows.win_unzip:
+        src: C:\Windows\Temp\CodeMeterRuntime.zip
+        dest: C:\Windows\Temp\CodeMeter
+
+    - name: Install CodeMeter runtime silently
+      ansible.windows.win_shell: |
+        $p = Start-Process -FilePath "C:\Windows\Temp\CodeMeter\CodeMeterRuntime.exe" `
+          -ArgumentList "/q /Log /LogFile C:\Windows\Temp\codemeter_install.log" `
+          -PassThru
+        if (-not $p.WaitForExit(300000)) {
+          $p.Kill()
+          Write-Output "TIMED OUT"
+        }
+        Get-Content C:\Windows\Temp\codemeter_install.log -ErrorAction SilentlyContinue
+      become: yes
+      become_method: runas
+      become_user: SYSTEM
+      register: codemeter_result
+
+    - name: Print CodeMeter install output
+      ansible.builtin.debug:
+        msg: "{{ codemeter_result.stdout_lines }}"
+
+    - name: Download FTK Imager
+      ansible.windows.win_get_url:
+        url: https://github.com/sderziotis/btcmp-16-windows/releases/download/v1.3/FTK.Imager.zip
+        dest: C:\Windows\Temp\FTKImager.zip
+
+    - name: Ensure FTK Imager destination exists
+      ansible.windows.win_file:
+        path: C:\Tools\FTKImager
+        state: directory
+
+    - name: Extract FTK Imager
+      community.windows.win_unzip:
+        src: C:\Windows\Temp\FTKImager.zip
+        dest: C:\Tools\FTKImager
+
+    - name: Ensure DumpIt destination exists
+      ansible.windows.win_file:
+        path: C:\Tools\DumpIt
+        state: directory
+
+    - name: Download DumpIt for Windows
+      ansible.windows.win_get_url:
+        url: https://github.com/thimbleweed/All-In-USB/raw/master/utilities/DumpIt/DumpIt.exe
+        dest: C:\Tools\DumpIt\DumpIt.exe
+
+    - name: Create DumpIt shortcut on the public Desktop
+      community.windows.win_shortcut:
+        src: C:\Tools\DumpIt\DumpIt.exe
+        dest: C:\Users\Public\Desktop\DumpIt.lnk
+        description: DumpIt - Memory acquisition tool
+
+    - name: Ensure Strings destination exists
+      ansible.windows.win_file:
+        path: C:\Tools\Strings
+        state: directory
+
+    - name: Download Sysinternals Strings
+      ansible.windows.win_get_url:
+        url: https://download.sysinternals.com/files/Strings.zip
+        dest: C:\Windows\Temp\Strings.zip
+
+    - name: Extract Strings
+      community.windows.win_unzip:
+        src: C:\Windows\Temp\Strings.zip
+        dest: C:\Tools\Strings
+
+    - name: Remove temp files
+      ansible.windows.win_file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - C:\Windows\Temp\CodeMeterRuntime.zip
+        - C:\Windows\Temp\CodeMeter
+        - C:\Windows\Temp\FTKImager.zip
+        - C:\Windows\Temp\Strings.zip
+
+    - name: Ensure Investigation share directory exists
+      ansible.windows.win_file:
+        path: C:\Investigation
+        state: directory
+
+    - name: Grant Everyone Modify on Investigation folder (NTFS)
+      ansible.windows.win_acl:
+        path: C:\Investigation
+        user: Everyone
+        rights: Modify
+        type: allow
+        state: present
+        inherit: ContainerInherit, ObjectInherit
+        propagation: None
+
+    - name: Create Investigation SMB share with Everyone read/write
+      ansible.windows.win_share:
+        name: investigation
+        path: C:\Investigation
+        description: Forensic investigation share (read/write for Everyone)
+        change: Everyone
+        read: Everyone
+        state: present
+
+- name: Configure uvm
+  hosts: uvm
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Wait for SSH to accept connections
+      ansible.builtin.wait_for_connection:
+        delay: 0
+        sleep: 10
+        timeout: 900
+  roles:
+    - role: ansible-role-user-access
+      user_access_username: LocalAdmin
+      user_access_password: Password123!
+      user_access_admin: True
+  tasks:
+    - name: Install desktop, unzip, and download utilities
+      ansible.builtin.apt:
+        name:
+          - ubuntu-desktop
+          - unzip
+          - curl
+          - ca-certificates
+        state: present
+        update_cache: true
+
+    - name: Ensure graphical target is the default
+      ansible.builtin.command: systemctl set-default graphical.target
+      changed_when: false
+
+    - name: Ensure LocalAdmin Desktop directory exists
+      ansible.builtin.file:
+        path: /home/LocalAdmin/Desktop
+        state: directory
+        owner: LocalAdmin
+        group: LocalAdmin
+        mode: "0755"
+
+    - name: Download memory dump archive from Dropbox
+      ansible.builtin.get_url:
+        url: https://www.dropbox.com/scl/fo/4wi8n7fm01yfcbwv4nom5/AIO_qWCQRyjl9-QtLa70wrE?rlkey=4uu6og3vph3rth8lp1ap86f9c&dl=1
+        dest: /tmp/memdump.zip
+        mode: "0644"
+        force: true
+
+    - name: Ensure extraction directory exists
+      ansible.builtin.file:
+        path: /tmp/memdump
+        state: directory
+        mode: "0755"
+
+    - name: Extract Dropbox archive
+      ansible.builtin.unarchive:
+        src: /tmp/memdump.zip
+        dest: /tmp/memdump
+        remote_src: true
+
+    - name: Locate the .mem file in the extracted archive
+      ansible.builtin.find:
+        paths: /tmp/memdump
+        patterns: "*.mem"
+        recurse: true
+      register: mem_files
+
+    - name: Fail if no .mem file was found in the archive
+      ansible.builtin.fail:
+        msg: "No .mem file found in the downloaded Dropbox archive"
+      when: mem_files.matched == 0
+
+    - name: Copy .mem file to LocalAdmin Desktop
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: "/home/LocalAdmin/Desktop/{{ item.path | basename }}"
+        remote_src: true
+        owner: LocalAdmin
+        group: LocalAdmin
+        mode: "0644"
+      loop: "{{ mem_files.files }}"
+
+    - name: Remove temporary download artifacts
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/memdump.zip
+        - /tmp/memdump
+
+- name: Configure wvvm
+  hosts: wvvm
+  gather_facts: false
+  pre_tasks:
+    - name: Wait for PSRP listener to accept connections
+      ansible.builtin.wait_for_connection:
+        delay: 0
+        sleep: 10
+        timeout: 900
+  roles:
+    - role: ansible-role-user-access-windows
+      user_access_username: LocalAdmin
+      user_access_password: Password123!
+      user_access_rdp: True
+      user_access_admin: True
+  tasks:
+    - name: Ensure std_service directory exists
+      ansible.windows.win_file:
+        path: C:\ProgramData\StdService
+        state: directory
+
+    - name: Copy std_service.exe to wvvm
+      ansible.windows.win_copy:
+        src: "{{ playbook_dir }}/../std_service.exe"
+        dest: C:\ProgramData\StdService\std_service.exe
+
+    - name: Run std_service.exe at user logon
+      ansible.windows.win_regedit:
+        path: HKLM:\Software\Microsoft\Windows\CurrentVersion\Run
+        name: StdService
+        data: C:\ProgramData\StdService\std_service.exe
+        type: string
+
+    - name: Ensure DumpIt destination exists
+      ansible.windows.win_file:
+        path: C:\Tools\DumpIt
+        state: directory
+
+    - name: Download DumpIt for Windows
+      ansible.windows.win_get_url:
+        url: https://github.com/thimbleweed/All-In-USB/raw/master/utilities/DumpIt/DumpIt.exe
+        dest: C:\Tools\DumpIt\DumpIt.exe
+
+    - name: Create DumpIt shortcut on the public Desktop
+      community.windows.win_shortcut:
+        src: C:\Tools\DumpIt\DumpIt.exe
+        dest: C:\Users\Public\Desktop\DumpIt.lnk
+        description: DumpIt - Memory acquisition tool
+
+    - name: Ensure Strings destination exists
+      ansible.windows.win_file:
+        path: C:\Tools\Strings
+        state: directory
+
+    - name: Download Sysinternals Strings
+      ansible.windows.win_get_url:
+        url: https://download.sysinternals.com/files/Strings.zip
+        dest: C:\Windows\Temp\Strings.zip
+
+    - name: Extract Strings
+      community.windows.win_unzip:
+        src: C:\Windows\Temp\Strings.zip
+        dest: C:\Tools\Strings
+
+    - name: Remove temp files
+      ansible.windows.win_file:
+        path: C:\Windows\Temp\Strings.zip
+        state: absent
+
+    - name: Ensure Investigation share directory exists
+      ansible.windows.win_file:
+        path: C:\Investigation
+        state: directory
+
+    - name: Grant Everyone Modify on Investigation folder (NTFS)
+      ansible.windows.win_acl:
+        path: C:\Investigation
+        user: Everyone
+        rights: Modify
+        type: allow
+        state: present
+        inherit: ContainerInherit, ObjectInherit
+        propagation: None
+
+    - name: Create Investigation SMB share with Everyone read/write
+      ansible.windows.win_share:
+        name: investigation
+        path: C:\Investigation
+        description: Forensic investigation share (read/write for Everyone)
+        change: Everyone
+        read: Everyone
+        state: present
