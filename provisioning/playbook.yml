@@ -13,6 +13,10 @@
       user_access_username: LocalAdmin
       user_access_password: Password123!
       user_access_admin: True
+    - role: user-access
+      user_access_username: user
+      user_access_password: 'btcmp16@admin'
+      user_access_sudo: true
   tasks:
     - name: Install unzip and download utilities
       ansible.builtin.apt:
@@ -22,6 +26,55 @@
           - ca-certificates
         state: present
         update_cache: true
+
+    - name: Add user to desktop and hardware groups
+      ansible.builtin.user:
+        name: user
+        groups: audio,video,netdev,plugdev,cdrom,dialout,scanner,bluetooth
+        append: true
+
+    - name: Ensure LightDM config drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/lightdm/lightdm.conf.d
+        state: directory
+        mode: "0755"
+
+    - name: Configure LightDM autologin for user
+      ansible.builtin.copy:
+        dest: /etc/lightdm/lightdm.conf.d/12-autologin.conf
+        content: |
+          [Seat:*]
+          autologin-user=user
+          autologin-user-timeout=0
+          user-session=xfce
+        mode: "0644"
+
+    - name: Ensure openssh-server is installed
+      ansible.builtin.apt:
+        name: openssh-server
+        state: present
+
+    - name: Allow SSH password login for user and LocalAdmin
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/10-btcmp16.conf
+        content: |
+          PasswordAuthentication yes
+          PubkeyAuthentication yes
+          AllowUsers kali user LocalAdmin
+        mode: "0644"
+      notify: Restart sshd
+
+    - name: Ensure sshd is enabled and running
+      ansible.builtin.systemd:
+        name: ssh
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Restart sshd
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted
 
     - name: Ensure LocalAdmin Desktop directory exists
       ansible.builtin.file:
