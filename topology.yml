@@ -1,26 +1,10 @@
-name: btcmp16-windows
+name: btcmp16-kali
 hosts:
-  - name: wavm
-    flavor: c4_r8_d60
-    base_box:
-      image: windows-server-2019-x86_64
-      mgmt_user: windows
-      mgmt_protocol: winrm
-    hidden: false
-    volumes:
-    - size: 60
-  - name: wvvm
-    flavor: c4_r8_d60
-    base_box:
-      image: windows-server-2019-x86_64
-      mgmt_user: windows
-      mgmt_protocol: winrm
-    hidden: false
   - name: uvm
     flavor: c4_r8_d60
     base_box:
-      image: ubuntu-22.04-x86_64-gui
-      mgmt_user: ubuntu
+      image: kali-2026.1-x86_64
+      mgmt_user: kali
       mgmt_protocol: ssh
     hidden: false
     volumes:
@@ -42,12 +26,6 @@ wan:
   name: wan
   cidr: 10.10.100.0/24
 net_mappings:
-  - host: wavm
-    network: access-switch
-    ip: 10.10.10.3
-  - host: wvvm
-    network: access-switch
-    ip: 10.10.10.4
   - host: uvm
     network: access-switch
     ip: 10.10.10.5

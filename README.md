@@ -1,4 +1,4 @@
-# BTCMP-16 — Digital Forensics Lab Environment - Windows
+# BTCMP-16 — Digital Forensics Lab Environment - Kali
 applied to BTCMP-16- Memory Forensics Evidence Gathering
 ## Overview
 
@@ -10,43 +10,16 @@ This lab environment is built around **Digital Forensics** scenarios.
 
 | Host | Role | Network | CIDR | IP |
 |------|------|---------|------|----|
-| wavm | Analyst Workstation (Windows Server 2019) | access-switch | 10.10.10.0/24 | 10.10.10.3 |
-| wvvm | Victim/Evidence Machine (Windows Server 2019) | access-switch | 10.10.10.0/24 | 10.10.10.4 |
+| uvm | Analyst Workstation (Kali 2026.1) | access-switch | 10.10.10.0/24 | 10.10.10.5 |
 | router | Network Router (Debian 12) | access-switch | 10.10.10.0/24 | 10.10.10.1 |
 
 ---
 
 ## Machines
 
-### WAVM — Analyst Workstation (Windows Server 2019)
-User `LocalAdmin` / `Password123!` (admin, RDP enabled).
+### UVM — Analyst Workstation (Kali 2026.1)
+User `LocalAdmin` / `Password123!` (admin).
 
-**Software:**
-- Git (via Chocolatey)
-- Autopsy / Sleuth Kit 4.21.0 (via Chocolatey)
-- Strawberry Perl (via Chocolatey)
-- CodeMeter Runtime (installed silently from GitHub release)
-- FTK Imager (extracted to `C:\Tools\FTKImager`)
-- DumpIt (memory acquisition; extracted to `C:\Tools\DumpIt`, Desktop shortcut on public Desktop)
-- Sysinternals Strings (extracted to `C:\Tools\Strings`)
-- SMB share `\\wavm\investigation` → `C:\Investigation` (Everyone read/write, share + NTFS)
-
-**Notes:**
-- FTK Imager is not installed via an installer — it is extracted directly to `C:\Tools\FTKImager` and run as a portable application.
-- CodeMeter Runtime is required as a dependency for certain forensic tools and is installed silently.
-
----
-
-### WVVM — Victim / Evidence Machine (Windows Server 2019)
-User `LocalAdmin` / `Password123!` (admin, RDP enabled).
-
-**Software:**
-- DumpIt (memory acquisition; extracted to `C:\Tools\DumpIt`, Desktop shortcut on public Desktop).
-- Sysinternals Strings (extracted to `C:\Tools\Strings`).
-- SMB share `\\wvvm\investigation` → `C:\Investigation` (Everyone read/write, share + NTFS).
-
----
-
-## Notes
-- The `community.windows` Ansible collection is required for the `win_unzip` module.
-- The `chocolatey.chocolatey` collection (v1.5.1) is required for Chocolatey-based installs.
+**Provisioning:**
+- `unzip`, `curl`, `ca-certificates` installed via apt.
+- Memory dump archive fetched from Dropbox, extracted, and the `.mem` file placed on `LocalAdmin`'s Desktop (`/home/LocalAdmin/Desktop/`).
