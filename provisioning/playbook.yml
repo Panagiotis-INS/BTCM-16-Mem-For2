@@ -234,23 +234,6 @@
       user_access_rdp: True
       user_access_admin: True
   tasks:
-    - name: Ensure std_service directory exists
-      ansible.windows.win_file:
-        path: C:\ProgramData\StdService
-        state: directory
-
-    - name: Copy std_service.exe to wvvm
-      ansible.windows.win_copy:
-        src: "{{ playbook_dir }}/../std_service.exe"
-        dest: C:\ProgramData\StdService\std_service.exe
-
-    - name: Run std_service.exe at user logon
-      ansible.windows.win_regedit:
-        path: HKLM:\Software\Microsoft\Windows\CurrentVersion\Run
-        name: StdService
-        data: C:\ProgramData\StdService\std_service.exe
-        type: string
-
     - name: Ensure DumpIt destination exists
       ansible.windows.win_file:
         path: C:\Tools\DumpIt

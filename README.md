@@ -41,7 +41,6 @@ User `LocalAdmin` / `Password123!` (admin, RDP enabled).
 User `LocalAdmin` / `Password123!` (admin, RDP enabled).
 
 **Software:**
-- `std_service.exe` copied to `C:\ProgramData\StdService\` and registered under `HKLM\...\CurrentVersion\Run` so it launches on every user logon (keeps the target string resident in memory for acquisition).
 - DumpIt (memory acquisition; extracted to `C:\Tools\DumpIt`, Desktop shortcut on public Desktop).
 - Sysinternals Strings (extracted to `C:\Tools\Strings`).
 - SMB share `\\wvvm\investigation` → `C:\Investigation` (Everyone read/write, share + NTFS).
