@@ -2,6 +2,12 @@
   hosts: uvm
   gather_facts: false
   become: true
+  vars:
+    ansible_connection: ssh
+    ansible_user: kali
+    ansible_password: kali
+    ansible_become_password: kali
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o PubkeyAuthentication=no'
   pre_tasks:
     - name: Wait for SSH to accept connections
       ansible.builtin.wait_for_connection:
@@ -70,12 +76,6 @@
         enabled: true
         state: started
 
-  handlers:
-    - name: Restart sshd
-      ansible.builtin.systemd:
-        name: ssh
-        state: restarted
-
     - name: Ensure LocalAdmin Desktop directory exists
       ansible.builtin.file:
         path: /home/LocalAdmin/Desktop
@@ -132,3 +132,34 @@
       loop:
         - /tmp/memdump.zip
         - /tmp/memdump
+
+    - name: Install python2.7 and git
+      ansible.builtin.apt:
+        name:
+          - python2.7
+          - git
+        state: present
+        update_cache: true
+
+    - name: Download get-pip.py for Python 2.7
+      ansible.builtin.get_url:
+        url: https://bootstrap.pypa.io/pip/2.7/get-pip.py
+        dest: /tmp/get-pip.py
+        mode: "0644"
+
+    - name: Install pip for Python 2.7
+      ansible.builtin.command:
+        cmd: python2.7 /tmp/get-pip.py
+        creates: /usr/local/bin/pip2.7
+
+    - name: Clone Volatility repository as LocalAdmin
+      become_user: LocalAdmin
+      ansible.builtin.git:
+        repo: https://github.com/volatilityfoundation/volatility.git
+        dest: /home/LocalAdmin/volatility
+
+  handlers:
+    - name: Restart sshd
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted
