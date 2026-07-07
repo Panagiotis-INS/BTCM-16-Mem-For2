@@ -12,7 +12,7 @@
       user_access_username: LocalAdmin
       user_access_password: Password123!
       user_access_admin: True
-    - role: user-access
+    - role: ansible-role-user-access
       user_access_username: user
       user_access_password: 'btcmp16@admin'
       user_access_sudo: true
