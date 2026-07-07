@@ -1,13 +1,30 @@
+# The framework's networking-hosts play targets uvm with key-based SSH and
+# fails (Kali doesn't accept the automation service's key). Once that play
+# marks uvm unreachable, Ansible skips uvm for every subsequent play — so our
+# play-level password auth never gets a chance to run.
+#
+# Workaround: register a fresh host entry (uvm_pw) via add_host that points at
+# the same management IP but forces password auth. Because it's a new host,
+# it's not affected by uvm's unreachable state and our play can drive it.
+- name: Register uvm alias with password auth
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Add uvm_pw to inventory with password credentials
+      ansible.builtin.add_host:
+        name: uvm_pw
+        ansible_host: "{{ hostvars['uvm']['ansible_host'] | default(hostvars['uvm']['inventory_hostname']) }}"
+        ansible_connection: ssh
+        ansible_user: kali
+        ansible_password: kali
+        ansible_become: true
+        ansible_become_password: kali
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o PubkeyAuthentication=no'
+
 - name: Configure uvm
-  hosts: uvm
+  hosts: uvm_pw
   gather_facts: false
   become: true
-  vars:
-    ansible_connection: ssh
-    ansible_user: kali
-    ansible_password: kali
-    ansible_become_password: kali
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o PubkeyAuthentication=no'
   pre_tasks:
     - name: Wait for SSH to accept connections
       ansible.builtin.wait_for_connection:

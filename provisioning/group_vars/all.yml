@@ -1,8 +1,1 @@
 ad_domain_name: globalfinancial.local
-
-# uvm needs password auth (automation service can't use SSH keys with Kali).
-# Other hosts get empty strings, which Ansible treats as unset -> they keep
-# their inventory-provided key auth.
-ansible_password: "{{ 'kali' if inventory_hostname == 'uvm' else '' }}"
-ansible_become_password: "{{ 'kali' if inventory_hostname == 'uvm' else '' }}"
-ansible_ssh_common_args: "{{ '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o PubkeyAuthentication=no' if inventory_hostname == 'uvm' else '' }}"
