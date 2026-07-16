@@ -3,7 +3,7 @@ hosts:
   - name: uvm
     flavor: c4_r8_d60
     base_box:
-      image: xubuntu-noble-x86_64
+      image: btcmp16-xubuntu-MemoryForensics-x86_64
       mgmt_user: ubuntu
       mgmt_protocol: ssh
     hidden: false
